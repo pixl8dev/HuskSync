@@ -1,11 +1,13 @@
-name: Release Tests & Publish
+name: Build & Upload JARs
 
 on:
-  release:
-    types: [ 'published' ]
+  push:
+    branches:
+      - *
 
 permissions:
   contents: read
+  releases: write
   checks: write
 
 jobs:
@@ -14,72 +16,48 @@ jobs:
     steps:
       - name: 'Checkout for CI 🛎️'
         uses: actions/checkout@v4
+
       - name: 'Set up JDK 21 📦'
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
+
       - name: 'Build with Gradle 🏗️'
         uses: gradle/gradle-build-action@v3
         with:
-          arguments: build test publish
+          arguments: build test
         env:
           RELEASES_MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           RELEASES_MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+
       - name: 'Publish Test Report 📊'
         uses: mikepenz/action-junit-report@v5
-        if: success() || failure() # Continue on failure
+        if: success() || failure()
         with:
           report_paths: '**/build/test-results/test/TEST-*.xml'
-      - name: 'Publish to William278.net 🚀'
-        uses: WiIIiam278/bones-publish-action@v1
-        with:
-          api-key: ${{ secrets.BONES_API_KEY }}
-          project: 'husksync'
-          channel: 'release'
-          version: ${{ github.event.release.tag_name }}
-          changelog: ${{ github.event.release.body }}
-          distro-names: |
-            paper-1.20.1
-            paper-1.21.1
-            paper-1.21.4
-            paper-1.21.5
-            paper-1.21.8
-            fabric-1.20.1
-            fabric-1.21.1
-            fabric-1.21.4
-            fabric-1.21.5
-            fabric-1.21.8
-          distro-groups: |
-            paper
-            paper
-            paper
-            paper
-            paper
-            fabric
-            fabric
-            fabric
-            fabric
-            fabric
-          distro-descriptions: |
-            Paper 1.20.1
-            Paper 1.21.1
-            Paper 1.21.4
-            Paper 1.21.5
-            Paper 1.21.8
-            Fabric 1.20.1
-            Fabric 1.21.1
-            Fabric 1.21.4
-            Fabric 1.21.5
-            Fabric 1.21.8
-          files: |
-            target/HuskSync-Bukkit-${{ github.event.release.tag_name }}+mc.1.20.1.jar
-            target/HuskSync-Bukkit-${{ github.event.release.tag_name }}+mc.1.21.1.jar
-            target/HuskSync-Bukkit-${{ github.event.release.tag_name }}+mc.1.21.4.jar
-            target/HuskSync-Bukkit-${{ github.event.release.tag_name }}+mc.1.21.5.jar
-            target/HuskSync-Bukkit-${{ github.event.release.tag_name }}+mc.1.21.8.jar
-            target/HuskSync-Fabric-${{ github.event.release.tag_name }}+mc.1.20.1.jar
-            target/HuskSync-Fabric-${{ github.event.release.tag_name }}+mc.1.21.1.jar
-            target/HuskSync-Fabric-${{ github.event.release.tag_name }}+mc.1.21.4.jar
-            target/HuskSync-Fabric-${{ github.event.release.tag_name }}+mc.1.21.5.jar
-            target/HuskSync-Fabric-${{ github.event.release.tag_name }}+mc.1.21.8.jar
+
+      - name: 'Upload All JARs to Release 🚀'
+        run: |
+          # Set tag name to commit SHA if no release exists
+          TAG_NAME="${GITHUB_REF_NAME:-$GITHUB_SHA}"
+
+          JARS=(
+            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.20.1.jar"
+            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.21.1.jar"
+            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.21.4.jar"
+            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.21.5.jar"
+            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.21.8.jar"
+            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.20.1.jar"
+            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.21.1.jar"
+            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.21.4.jar"
+            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.21.5.jar"
+            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.21.8.jar"
+          )
+
+          for jar in "${JARS[@]}"; do
+            echo "Uploading $jar..."
+            gh release upload "${TAG_NAME}" "$jar" --clobber || echo "Release $TAG_NAME not found, skipping upload."
+          done
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
