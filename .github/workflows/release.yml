@@ -36,27 +36,10 @@ jobs:
         with:
           report_paths: '**/build/test-results/test/TEST-*.xml'
 
-      - name: 'Upload All JARs to Release 🚀'
-        run: |
-          # Set tag name to commit SHA if no release exists
-          TAG_NAME="${GITHUB_REF_NAME:-$GITHUB_SHA}"
-
-          JARS=(
-            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.20.1.jar"
-            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.21.1.jar"
-            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.21.4.jar"
-            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.21.5.jar"
-            "target/HuskSync-Bukkit-${TAG_NAME}+mc.1.21.8.jar"
-            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.20.1.jar"
-            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.21.1.jar"
-            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.21.4.jar"
-            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.21.5.jar"
-            "target/HuskSync-Fabric-${TAG_NAME}+mc.1.21.8.jar"
-          )
-
-          for jar in "${JARS[@]}"; do
-            echo "Uploading $jar..."
-            gh release upload "${TAG_NAME}" "$jar" --clobber || echo "Release $TAG_NAME not found, skipping upload."
-          done
-        env:
-          GITHUB_REF_NAME: ${{ github.ref_name }}
+      - name: 'Upload All JARs as Artifacts 📦'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jars
+          path: |
+            target/HuskSync-Bukkit-*.jar
+            target/HuskSync-Fabric-*.jar
